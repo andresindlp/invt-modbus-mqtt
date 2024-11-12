@@ -132,7 +132,7 @@ def main():
             print(f"Published: {json_payload}")
 
             mqtt_client.loop(2)  # Maintain network loop for MQTT
-            time.sleep(os.getenv("UPDATE_INTERVAL"))
+            time.sleep(int(os.getenv("UPDATE_INTERVAL")))
 
     except Exception as e:
         print(e)
