@@ -1,12 +1,19 @@
-# INVT Solar Inverter Modbus-MQTT Publisher
+# INVT Solar Inverter MQTT Publisher
 
 This project is designed to read data from an INVT solar inverter using Modbus and publish the readings to an MQTT broker.
 
 ## Features
 
-- **Modbus Communication**: Retrieve data directly from the INVT solar inverter.
+- **Modbus Communication**: Retrieve data directly from the inverter.
+- **Fast Update Inverval**: Get new data as quickly as every second.
 - **MQTT Publishing**: Transmit inverter data to an MQTT broker for further analysis or integration.
 - **Environment Configurations**: Use a `.env` file to manage configurations securely.
+- **Home Assistant AutoDiscovery**: Automatically import all sensors as entities in HA with units, names and icons.
+- **Easy customization**: Modify `definitions.py` acording to your needs.
+
+## Home Assistant Entities
+<img width="1204" alt="image" src="https://github.com/user-attachments/assets/9ac6c87a-d753-4f37-bb73-d0c879721126">
+
 
 ## Prerequisites
 
@@ -17,6 +24,11 @@ Ensure you have the following:
 
 ## COM Port Wiring
 We only need A+ and B-, which on INVT inverters with a round COM port are PINs 2 and 3. The PINs are written inside the connector. I've used alligator clips and a 120 Ohm resistor on both ends of the chain (not necessary)
+
+<p align="center">
+  <img height="150" src="https://github.com/user-attachments/assets/d95ff7c1-8391-41fc-92f2-c5cab911851f">
+</p>
+
 
 > [!WARNING]  
 > Be careful connecting the adapter to the COM port, the PINs are very close together and you can short out your inverter. I'm not responsible for any damages that may occur.
@@ -48,7 +60,7 @@ We only need A+ and B-, which on INVT inverters with a round COM port are PINs 2
 
 4. **Run the script**:
    ```bash
-    python3 main.py
+    python main.py
     ```
 
 ## Example output
