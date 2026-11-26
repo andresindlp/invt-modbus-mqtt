@@ -69,6 +69,50 @@ def read_sensor_value(client, address, slave, data_type, scale=1, value_map=None
         return int(raw_value * scale)
     return round(float(raw_value) * scale, decimals)
 
+
+def read_serial_number(client, slave=1):
+    rr = client.read_holding_registers(address=0x3001, count=16, slave=slave)
+    if rr.isError():
+        raise Exception("Error reading serial number registers at address 0x3001")
+    raw_bytes = bytearray()
+    for reg in rr.registers:
+        for byte in ((reg >> 8) & 0xFF, reg & 0xFF):
+            if byte not in (0x00, 0xFF):
+                raw_bytes.append(byte)
+    return raw_bytes.decode("ascii", errors="ignore").strip()
+
+
+def read_sw_version(client, slave=1):
+    rr = client.read_holding_registers(address=0x3802, count=4, slave=slave)
+    if rr.isError():
+        raise Exception("Error reading software version registers at address 0x3802")
+    return "-".join(str(int(convert_to_unsigned_16bit(r))) for r in rr.registers)
+
+
+def populate_device_info(client, base_device_info, slave=1):
+    info = dict(base_device_info)
+
+    try:
+        serial_number = read_serial_number(client, slave=slave)
+        if serial_number:
+            info["serial_number"] = serial_number
+    except Exception as e:
+        print(f"Error reading serial number: {e}")
+
+    if "serial_number" not in info:
+        fallback_serial = os.getenv("INVT_SERIAL_NUMBER")
+        if fallback_serial:
+            info["serial_number"] = fallback_serial
+
+    try:
+        sw_version = read_sw_version(client, slave=slave)
+        if sw_version:
+            info["sw_version"] = sw_version
+    except Exception as e:
+        print(f"Error reading software version: {e}")
+
+    return info
+
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
 
@@ -111,7 +155,8 @@ def main():
 
     try:
 
-        publish_discovery_messages(mqtt_client, sensors, device_info)
+        resolved_device_info = populate_device_info(client, device_info, slave=1)
+        publish_discovery_messages(mqtt_client, sensors, resolved_device_info)
 
         while True:
             results = {}

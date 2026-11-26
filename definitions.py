@@ -1,8 +1,3 @@
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
 ## TIP: Use U32 to join two U16 registers.
 ## Example: 
 
@@ -788,11 +783,9 @@ sensor_details = {
 }
 
 device_info = {
-            "identifiers": ["invt_001"],
-            "name": "INVT",
-            "manufacturer": "INVT",
-            "model": "XD6KTL",
-            "sw_version": "425-422-0-101",
-            "hw_version": "V1.0",
-            "serial_number": os.getenv("INVT_SERIAL_NUMBER")
-        }
+    "identifiers": ["invt_001"],
+    "name": "INVT",
+    "manufacturer": "INVT",
+    "model": "XD6KTL",
+    "hw_version": "V1.0",
+}
