@@ -1,15 +1,19 @@
-import time
+from datetime import datetime
 import json
-from pymodbus.client import ModbusTcpClient
+import os
+import queue
+import re
+import time
+from dotenv import load_dotenv
 import numpy as np
 import paho.mqtt.client as mqtt
-from dotenv import load_dotenv
-import os
+from pymodbus.client import ModbusTcpClient
 from definitions import (
     ALARM_CODES,
     ALARM_TYPES,
     FAULT_CODES,
     FAULT_TYPES,
+    controls,
     derived_sensors,
     device_info,
     sensor_details,
@@ -17,6 +21,17 @@ from definitions import (
 )
 
 load_dotenv()
+
+TIME_HM_PATTERN = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
+
+
+def is_writes_enabled():
+    return os.getenv("ENABLE_MODBUS_WRITES", "false").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 ## Convert received Modbus data
 
@@ -168,11 +183,232 @@ def publish_discovery_messages(client, sensors, device_info):
         discovery_topic = f"homeassistant/sensor/{sensor_id}/config"
         client.publish(discovery_topic, json.dumps(discovery_payload), retain=True)
 
+
+def decode_control_value(raw_value, config):
+    component = config["component"]
+    if component == "select":
+        return config["options"].get(raw_value)
+    if component == "switch":
+        if raw_value == 1:
+            return "ON"
+        if raw_value == 0:
+            return "OFF"
+        return None
+    if component == "number":
+        return int(raw_value)
+    if component == "text" and config.get("value_type") == "hm":
+        hour = (raw_value >> 8) & 0xFF
+        minute = raw_value & 0xFF
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return f"{hour:02d}:{minute:02d}"
+        return None
+    return None
+
+
+def encode_control_value(payload, config):
+    component = config["component"]
+    text = payload.strip()
+
+    if component == "select":
+        for code, label in config["options"].items():
+            if text == label:
+                return code
+        raise ValueError(f"Invalid option '{payload}' for {config['name']}")
+
+    if component == "switch":
+        upper = text.upper()
+        if upper == "ON":
+            return 1
+        if upper == "OFF":
+            return 0
+        raise ValueError(f"Invalid switch payload '{payload}' for {config['name']}")
+
+    if component == "number":
+        try:
+            numeric = float(text)
+        except ValueError as err:
+            raise ValueError(f"Invalid numeric payload '{payload}' for {config['name']}") from err
+        if not numeric.is_integer():
+            raise ValueError(f"Expected integer value, got '{payload}' for {config['name']}")
+        val = int(numeric)
+        if val < config["min"] or val > config["max"]:
+            raise ValueError(
+                f"Value {val} out of range [{config['min']}, {config['max']}] for {config['name']}"
+            )
+        return val
+
+    if component == "text" and config.get("value_type") == "hm":
+        if not re.match(TIME_HM_PATTERN, text):
+            raise ValueError(f"Invalid HH:MM time '{payload}' for {config['name']}")
+        hour, minute = (int(part) for part in text.split(":"))
+        return (hour << 8) | minute
+
+    raise ValueError(f"Unsupported control component: {component}")
+
+
+def _read_control_block(client, start_addr, count, slave):
+    rr = client.read_holding_registers(address=start_addr, count=count, slave=slave)
+    if rr.isError() or len(rr.registers) != count:
+        raise Exception(f"Error reading control block 0x{start_addr:04X} (count={count})")
+    return {
+        start_addr + i: int(convert_to_unsigned_16bit(reg))
+        for i, reg in enumerate(rr.registers)
+    }
+
+
+def read_control_states(client, slave=1):
+    addr_values = {}
+    read_ranges = (
+        (0x3118, 31),
+        (0x3160, 2),
+        (0x3111, 1),
+        (0x313C, 1),
+    )
+
+    for start_addr, count in read_ranges:
+        try:
+            addr_values.update(_read_control_block(client, start_addr, count, slave))
+        except Exception:
+            end_addr = start_addr + count - 1
+            for control_id, config in controls.items():
+                if config["component"] == "button":
+                    continue
+                addr = config["address"]
+                if start_addr <= addr <= end_addr:
+                    try:
+                        addr_values.update(_read_control_block(client, addr, 1, slave))
+                    except Exception as err:
+                        print(f"Error reading control {control_id}: {err}")
+
+    states = {}
+    raw_values = {}
+    for control_id, config in controls.items():
+        if config["component"] == "button":
+            continue
+        raw_val = addr_values.get(config["address"])
+        if raw_val is None:
+            continue
+        decoded = decode_control_value(raw_val, config)
+        if decoded is not None:
+            states[control_id] = decoded
+            raw_values[control_id] = raw_val
+
+    return states, raw_values
+
+
+def handle_control_command(client, control_id, payload, last_raw_values, slave=1):
+    if not is_writes_enabled() or control_id not in controls:
+        return False
+
+    config = controls[control_id]
+
+    if config.get("action") == "sync_clock":
+        if payload.strip().upper() != "PRESS":
+            raise ValueError(f"Invalid button payload '{payload}' for {control_id}")
+        now = datetime.now()
+        year_2d = now.year % 100
+        if not (20 <= year_2d <= 99):
+            raise ValueError(f"System year {now.year} out of inverter RTC range (2020-2099)")
+        values = [
+            (year_2d << 8) | now.month,
+            (now.day << 8) | now.hour,
+            (now.minute << 8) | now.second,
+        ]
+        rr = client.write_registers(address=0x3014, values=values, slave=slave)
+        if rr.isError():
+            raise Exception("Error writing clock registers at address 0x3014")
+        print(f"Synced inverter clock to {now.strftime('%Y-%m-%d %H:%M:%S')}")
+        return True
+
+    raw_val = encode_control_value(payload, config)
+    if last_raw_values.get(control_id) == raw_val:
+        print(f"Skipping write for {control_id}: value unchanged ({payload.strip()})")
+        return True
+
+    rr = client.write_registers(address=config["address"], values=[raw_val], slave=slave)
+    if rr.isError():
+        raise Exception(
+            f"Error writing register 0x{config['address']:04X} for {control_id}"
+        )
+    print(f"Wrote {control_id} (0x{config['address']:04X}) = {raw_val} ({payload.strip()})")
+    return True
+
+
+def publish_control_discovery_messages(mqtt_client, device_info):
+    base_topic = os.getenv("MQTT_TOPIC")
+    state_topic = f"{base_topic}/controls"
+
+    for control_id, config in controls.items():
+        component = config["component"]
+        discovery_payload = {
+            "name": config["name"],
+            "unique_id": f"modbus_ctrl_{control_id}",
+            "device": device_info,
+            "command_topic": f"{base_topic}/set/{control_id}",
+            "entity_category": "config",
+        }
+        if config.get("icon"):
+            discovery_payload["icon"] = config["icon"]
+
+        if component != "button":
+            discovery_payload["state_topic"] = state_topic
+            discovery_payload["value_template"] = "{{ value_json." + control_id + " }}"
+
+        if component == "select":
+            discovery_payload["options"] = list(config["options"].values())
+        elif component == "switch":
+            discovery_payload["payload_on"] = "ON"
+            discovery_payload["payload_off"] = "OFF"
+            discovery_payload["state_on"] = "ON"
+            discovery_payload["state_off"] = "OFF"
+        elif component == "number":
+            discovery_payload["min"] = config["min"]
+            discovery_payload["max"] = config["max"]
+            discovery_payload["step"] = config["step"]
+            discovery_payload["unit_of_measurement"] = config["unit"]
+            discovery_payload["mode"] = "box"
+        elif component == "text":
+            discovery_payload["pattern"] = TIME_HM_PATTERN
+            discovery_payload["min"] = 5
+            discovery_payload["max"] = 5
+            discovery_payload["mode"] = "text"
+        elif component == "button":
+            discovery_payload["payload_press"] = "PRESS"
+
+        discovery_topic = f"homeassistant/{component}/{control_id}/config"
+        mqtt_client.publish(discovery_topic, json.dumps(discovery_payload), retain=True)
+
+
 def main():
+    mqtt_topic = os.getenv("MQTT_TOPIC")
+    writes_enabled = is_writes_enabled()
+    update_interval = int(os.getenv("UPDATE_INTERVAL"))
+    command_queue = queue.Queue()
+
+    print("Modbus writes: ENABLED" if writes_enabled else "Modbus writes: DISABLED (read-only mode)")
+
+    def handle_connect(client_obj, userdata, flags, rc):
+        on_connect(client_obj, userdata, flags, rc)
+        if writes_enabled:
+            client_obj.subscribe(f"{mqtt_topic}/set/+")
+
+    def handle_message(client_obj, userdata, msg):
+        if not writes_enabled:
+            return
+        prefix = f"{mqtt_topic}/set/"
+        if not msg.topic.startswith(prefix):
+            return
+        control_id = msg.topic[len(prefix):]
+        payload = msg.payload.decode("utf-8", errors="ignore")
+        command_queue.put((control_id, payload))
+
     mqtt_client = mqtt.Client()
     mqtt_client.username_pw_set(os.getenv("MQTT_USERNAME"), os.getenv("MQTT_PASSWORD"))
-    mqtt_client.on_connect = on_connect
+    mqtt_client.on_connect = handle_connect
+    if writes_enabled:
+        mqtt_client.on_message = handle_message
     mqtt_client.connect(os.getenv("MQTT_BROKER_ADDRESS"), 1883, 60)
+    mqtt_client.loop_start()
 
     client = ModbusTcpClient(os.getenv("MODBUS_TCP_IP"))
     client.connect()
@@ -181,6 +417,10 @@ def main():
 
         resolved_device_info = populate_device_info(client, device_info, slave=1)
         publish_discovery_messages(mqtt_client, sensors, resolved_device_info)
+        if writes_enabled:
+            publish_control_discovery_messages(mqtt_client, resolved_device_info)
+
+        last_raw_values = {}
 
         while True:
             results = {}
@@ -216,19 +456,54 @@ def main():
             )
 
             json_payload = json.dumps(results)
-            mqtt_client.publish(os.getenv("MQTT_TOPIC"), json_payload)
+            mqtt_client.publish(mqtt_topic, json_payload)
+
+            if writes_enabled:
+                control_states, last_raw_values = read_control_states(client, slave=1)
+                mqtt_client.publish(
+                    f"{mqtt_topic}/controls",
+                    json.dumps(control_states),
+                    retain=True,
+                )
 
             clear_console()
 
             #pprint.pprint(results)
             for key, value in results.items():
                 print(f"{key}: {value}")
-            mqtt_client.loop(2)
-            time.sleep(int(os.getenv("UPDATE_INTERVAL")))
+
+            if writes_enabled:
+                deadline = time.monotonic() + update_interval
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    try:
+                        control_id, payload = command_queue.get(timeout=remaining)
+                    except queue.Empty:
+                        break
+                    try:
+                        if handle_control_command(
+                            client, control_id, payload, last_raw_values, slave=1
+                        ):
+                            control_states, last_raw_values = read_control_states(
+                                client, slave=1
+                            )
+                            mqtt_client.publish(
+                                f"{mqtt_topic}/controls",
+                                json.dumps(control_states),
+                                retain=True,
+                            )
+                    except Exception as e:
+                        print(f"Error handling control command {control_id}: {e}")
+            else:
+                time.sleep(update_interval)
 
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
+        mqtt_client.loop_stop()
+        mqtt_client.disconnect()
         client.close()
 
 if __name__ == "__main__":
