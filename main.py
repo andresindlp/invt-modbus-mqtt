@@ -30,7 +30,16 @@ def convert_to_signed_16bit(value):
 
 ## Read specific Modbus address, convert the received data depending on the specified type, scale it, round it and return it.
 
-def read_sensor_value(client, address, slave, data_type, scale=1.0):
+def _decimals_for_scale(scale):
+    if isinstance(scale, int):
+        return 0
+    formatted = f"{scale:.10f}".rstrip("0")
+    if "." in formatted:
+        return len(formatted.split(".")[1])
+    return 0
+
+
+def read_sensor_value(client, address, slave, data_type, scale=1, value_map=None):
     if data_type in ["U16", "S16"]:
         rr = client.read_holding_registers(address=address, count=1, slave=slave)
     elif data_type in ["S32", "U32"]:
@@ -42,15 +51,23 @@ def read_sensor_value(client, address, slave, data_type, scale=1.0):
         raise Exception(f"Error reading registers at address {address}")
 
     if data_type == "U16":
-        return round(float(convert_to_unsigned_16bit(rr.registers[0])) * scale, 1)
+        raw_value = int(convert_to_unsigned_16bit(rr.registers[0]))
     elif data_type == "S16":
-        return round(float(convert_to_signed_16bit(rr.registers[0])) * scale, 1)
+        raw_value = int(convert_to_signed_16bit(rr.registers[0]))
     elif data_type == "S32":
         high, low = rr.registers
-        return round(float(convert_to_signed_32bit(high, low)) * scale, 1)
+        raw_value = int(convert_to_signed_32bit(high, low))
     elif data_type == "U32":
         high, low = rr.registers
-        return round(float(convert_to_unsigned_32bit(high, low)) * scale, 1)
+        raw_value = int(convert_to_unsigned_32bit(high, low))
+
+    if value_map is not None:
+        return value_map.get(raw_value, f"Unknown ({raw_value})")
+
+    decimals = _decimals_for_scale(scale)
+    if decimals == 0:
+        return int(raw_value * scale)
+    return round(float(raw_value) * scale, decimals)
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
@@ -106,7 +123,8 @@ def main():
                         config["address"],
                         slave=1,
                         data_type=config["type"],
-                        scale=config["scale"]
+                        scale=config["scale"],
+                        value_map=config.get("value_map")
                     )
                     results[sensor] = value
                 except Exception as e:

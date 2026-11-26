@@ -23,7 +23,7 @@ load_dotenv()
 
 sensors = {
     "EPS_V": {
-        "address": 0x3115,
+        "address": 0x3927,
         "type": "U16",
         "scale": 0.1,
         "unit": "V"
@@ -109,8 +109,24 @@ sensors = {
     "DERAT_MODE": {
         "address": 0x382C,
         "type": "U16",
-        "scale": 0.1,
-        "unit": ""
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "No Derating",
+            1: "High Voltage Derating",
+            2: "Boost High Temperature Derating",
+            3: "Inverter Derating",
+            4: "Ambient Temperature Derating",
+            5: "Power Setting Derating",
+            6: "Reset MPPT Derating",
+            7: "Reactive Power Derating",
+            8: "Loading Slope Derating",
+            9: "AC High Voltage Derating",
+            10: "ATE Adjust Derating",
+            11: "Single Inverter Anti-reflux Derating",
+            12: "Multi-inverter Anti-reflux Derating",
+            13: "Over-frequency Derating"
+        }
     },
     "PV_EN_DAY": {
         "address": 0x382F,
@@ -149,7 +165,7 @@ sensors = {
         "unit": "A"
     },
     "CT_CURR": {
-        "address": 0x3839,
+        "address": 0x3891,
         "type": "S16",
         "scale": 0.01,
         "unit": "A"
@@ -265,6 +281,233 @@ sensors = {
     "PV2_PWR": {
         "address": 0x3B02,
         "type": "U16",
+        "scale": 0.1,
+        "unit": "W"
+    },
+    "PV_EN_TOTAL": {
+        "address": 0x3830,
+        "type": "U32",
+        "scale": 0.1,
+        "unit": "kWh"
+    },
+    "LOCAL_LOAD_PWR": {
+        "address": 0x3922,
+        "type": "S32",
+        "scale": 0.1,
+        "unit": "W"
+    },
+    "PV_TOTAL_PWR": {
+        "address": 0x38E4,
+        "type": "U32",
+        "scale": 1,
+        "unit": "W"
+    },
+    "DAILY_PEAK_PWR": {
+        "address": 0x38CC,
+        "type": "U32",
+        "scale": 1,
+        "unit": "W"
+    },
+    "POWER_FACTOR": {
+        "address": 0x3821,
+        "type": "S16",
+        "scale": 0.001,
+        "unit": ""
+    },
+    "POWER_GEN_TIME": {
+        "address": 0x382D,
+        "type": "U32",
+        "scale": 0.5,
+        "unit": "s"
+    },
+    "INVERTER_STATUS": {
+        "address": 0x3806,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Initialization",
+            1: "Wait",
+            2: "On-grid",
+            3: "Fault",
+            4: "Burning Program",
+            5: "Off-grid",
+            6: "Bypass",
+            7: "PID Repair",
+            8: "PID Inhibition",
+            9: "Snow Removal",
+            10: "SVG Mode"
+        }
+    },
+    "MAIN_ALARM_CODE": {
+        "address": 0x3807,
+        "type": "U16",
+        "scale": 1,
+        "unit": ""
+    },
+    "SUB_ALARM_CODE": {
+        "address": 0x3808,
+        "type": "U16",
+        "scale": 1,
+        "unit": ""
+    },
+    "MAIN_FAULT_CODE": {
+        "address": 0x3809,
+        "type": "U16",
+        "scale": 1,
+        "unit": ""
+    },
+    "SUB_FAULT_CODE": {
+        "address": 0x380A,
+        "type": "U16",
+        "scale": 1,
+        "unit": ""
+    },
+    "GRID_CONNECT_COUNTDOWN": {
+        "address": 0x381B,
+        "type": "U16",
+        "scale": 1,
+        "unit": "s"
+    },
+    "METER_COMM_QUALITY": {
+        "address": 0x3884,
+        "type": "U16",
+        "scale": 0.1,
+        "unit": "%"
+    },
+    "NBUS_V": {
+        "address": 0x3810,
+        "type": "U16",
+        "scale": 0.1,
+        "unit": "V"
+    },
+    "BAT_STATUS": {
+        "address": 0x3924,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Idle",
+            1: "Charging",
+            2: "Discharging"
+        }
+    },
+    "BAT_CYCLES": {
+        "address": 0x3956,
+        "type": "U16",
+        "scale": 1,
+        "unit": "cycles"
+    },
+    "BAT_MAX_CELL_V": {
+        "address": 0x3944,
+        "type": "U16",
+        "scale": 1,
+        "unit": "mV"
+    },
+    "BAT_MIN_CELL_V": {
+        "address": 0x3945,
+        "type": "U16",
+        "scale": 1,
+        "unit": "mV"
+    },
+    "BAT_MAX_CELL_TEMP": {
+        "address": 0x3946,
+        "type": "S16",
+        "scale": 0.1,
+        "unit": "°C"
+    },
+    "BAT_MIN_CELL_TEMP": {
+        "address": 0x3947,
+        "type": "S16",
+        "scale": 0.1,
+        "unit": "°C"
+    },
+    "BMS_MAX_CHG_CURR": {
+        "address": 0x3939,
+        "type": "U16",
+        "scale": 0.1,
+        "unit": "A"
+    },
+    "BMS_MAX_DSG_CURR": {
+        "address": 0x393A,
+        "type": "U16",
+        "scale": 0.1,
+        "unit": "A"
+    },
+    "BMS_COMM_STATUS": {
+        "address": 0x394C,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Abnormal",
+            1: "Normal"
+        }
+    },
+    "BMS_MODULE_STATUS": {
+        "address": 0x393F,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Normal",
+            1: "Prompt",
+            2: "Warning",
+            3: "Fault"
+        }
+    },
+    "BMS_CHG_DISABLE": {
+        "address": 0x393D,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Allowed",
+            1: "Prohibited"
+        }
+    },
+    "BMS_DSG_DISABLE": {
+        "address": 0x393E,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Allowed",
+            1: "Prohibited"
+        }
+    },
+    "EPS_CURR": {
+        "address": 0x3928,
+        "type": "U16",
+        "scale": 0.01,
+        "unit": "A"
+    },
+    "EPS_FREQ": {
+        "address": 0x3926,
+        "type": "U16",
+        "scale": 0.01,
+        "unit": "Hz"
+    },
+    "PRIORITY_MODE": {
+        "address": 0x3111,
+        "type": "U16",
+        "scale": 1,
+        "unit": "",
+        "value_map": {
+            0: "Load Priority",
+            1: "Battery Priority",
+            2: "Grid Priority"
+        }
+    },
+    "USER_FLOW_PWR": {
+        "address": 0x3912,
+        "type": "S32",
+        "scale": 0.1,
+        "unit": "W"
+    },
+    "GRID_FLOW_PWR": {
+        "address": 0x391A,
+        "type": "S32",
         "scale": 0.1,
         "unit": "W"
     }
@@ -512,6 +755,175 @@ sensor_details = {
     "PV2_PWR": {
         "name": "PV2 Power",
         "icon": "mdi:solar-power",
+        "device_class": "power",
+        "state_class": "measurement"
+    },
+    "PV_EN_TOTAL": {
+        "name": "Total PV Energy",
+        "icon": "mdi:solar-power",
+        "device_class": "energy",
+        "state_class": "total_increasing"
+    },
+    "LOCAL_LOAD_PWR": {
+        "name": "Local Load Power",
+        "icon": "mdi:home-lightning-bolt-outline",
+        "device_class": "power",
+        "state_class": "measurement"
+    },
+    "PV_TOTAL_PWR": {
+        "name": "Total PV Power",
+        "icon": "mdi:solar-power",
+        "device_class": "power",
+        "state_class": "measurement"
+    },
+    "DAILY_PEAK_PWR": {
+        "name": "Daily Peak Power",
+        "icon": "mdi:chart-line",
+        "device_class": "power",
+        "state_class": "measurement"
+    },
+    "POWER_FACTOR": {
+        "name": "Power Factor",
+        "icon": "mdi:angle-acute",
+        "device_class": "power_factor",
+        "state_class": "measurement"
+    },
+    "POWER_GEN_TIME": {
+        "name": "Total Generation Time",
+        "icon": "mdi:timer-outline",
+        "device_class": "duration",
+        "state_class": "total_increasing"
+    },
+    "INVERTER_STATUS": {
+        "name": "Inverter Status",
+        "icon": "mdi:state-machine",
+        "device_class": "enum"
+    },
+    "MAIN_ALARM_CODE": {
+        "name": "Main Alarm Code",
+        "icon": "mdi:alert-outline"
+    },
+    "SUB_ALARM_CODE": {
+        "name": "Sub Alarm Code",
+        "icon": "mdi:alert-outline"
+    },
+    "MAIN_FAULT_CODE": {
+        "name": "Main Fault Code",
+        "icon": "mdi:alert-octagon-outline"
+    },
+    "SUB_FAULT_CODE": {
+        "name": "Sub Fault Code",
+        "icon": "mdi:alert-octagon-outline"
+    },
+    "GRID_CONNECT_COUNTDOWN": {
+        "name": "Grid Connect Countdown",
+        "icon": "mdi:timer-sand",
+        "device_class": "duration",
+        "state_class": "measurement"
+    },
+    "METER_COMM_QUALITY": {
+        "name": "Meter Communication Quality",
+        "icon": "mdi:signal",
+        "state_class": "measurement"
+    },
+    "NBUS_V": {
+        "name": "NBUS Voltage",
+        "icon": "mdi:flash",
+        "device_class": "voltage",
+        "state_class": "measurement"
+    },
+    "BAT_STATUS": {
+        "name": "Battery Status",
+        "icon": "mdi:battery-sync",
+        "device_class": "enum"
+    },
+    "BAT_CYCLES": {
+        "name": "Battery Cycles",
+        "icon": "mdi:battery-clock",
+        "state_class": "total_increasing"
+    },
+    "BAT_MAX_CELL_V": {
+        "name": "Battery Max Cell Voltage",
+        "icon": "mdi:battery-high",
+        "device_class": "voltage",
+        "state_class": "measurement"
+    },
+    "BAT_MIN_CELL_V": {
+        "name": "Battery Min Cell Voltage",
+        "icon": "mdi:battery-low",
+        "device_class": "voltage",
+        "state_class": "measurement"
+    },
+    "BAT_MAX_CELL_TEMP": {
+        "name": "Battery Max Cell Temperature",
+        "icon": "mdi:thermometer-high",
+        "device_class": "temperature",
+        "state_class": "measurement"
+    },
+    "BAT_MIN_CELL_TEMP": {
+        "name": "Battery Min Cell Temperature",
+        "icon": "mdi:thermometer-low",
+        "device_class": "temperature",
+        "state_class": "measurement"
+    },
+    "BMS_MAX_CHG_CURR": {
+        "name": "BMS Max Charge Current",
+        "icon": "mdi:current-dc",
+        "device_class": "current",
+        "state_class": "measurement"
+    },
+    "BMS_MAX_DSG_CURR": {
+        "name": "BMS Max Discharge Current",
+        "icon": "mdi:current-dc",
+        "device_class": "current",
+        "state_class": "measurement"
+    },
+    "BMS_COMM_STATUS": {
+        "name": "BMS Communication Status",
+        "icon": "mdi:lan-connect",
+        "device_class": "enum"
+    },
+    "BMS_MODULE_STATUS": {
+        "name": "BMS Module Status",
+        "icon": "mdi:battery-check",
+        "device_class": "enum"
+    },
+    "BMS_CHG_DISABLE": {
+        "name": "BMS Charging Permission",
+        "icon": "mdi:battery-charging",
+        "device_class": "enum"
+    },
+    "BMS_DSG_DISABLE": {
+        "name": "BMS Discharging Permission",
+        "icon": "mdi:battery-arrow-down",
+        "device_class": "enum"
+    },
+    "EPS_CURR": {
+        "name": "EPS Current",
+        "icon": "mdi:current-ac",
+        "device_class": "current",
+        "state_class": "measurement"
+    },
+    "EPS_FREQ": {
+        "name": "EPS Frequency",
+        "icon": "mdi:sine-wave",
+        "device_class": "frequency",
+        "state_class": "measurement"
+    },
+    "PRIORITY_MODE": {
+        "name": "Priority Mode",
+        "icon": "mdi:tune",
+        "device_class": "enum"
+    },
+    "USER_FLOW_PWR": {
+        "name": "User Flow Power",
+        "icon": "mdi:home-import-outline",
+        "device_class": "power",
+        "state_class": "measurement"
+    },
+    "GRID_FLOW_PWR": {
+        "name": "Grid Flow Power",
+        "icon": "mdi:transmission-tower-export",
         "device_class": "power",
         "state_class": "measurement"
     },
