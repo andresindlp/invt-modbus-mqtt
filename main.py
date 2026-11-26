@@ -5,7 +5,16 @@ import numpy as np
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import os
-from definitions import sensors, sensor_details, device_info
+from definitions import (
+    ALARM_CODES,
+    ALARM_TYPES,
+    FAULT_CODES,
+    FAULT_TYPES,
+    derived_sensors,
+    device_info,
+    sensor_details,
+    sensors,
+)
 
 load_dotenv()
 
@@ -119,11 +128,26 @@ def on_connect(client, userdata, flags, rc):
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+def format_status_code(main_code, sub_code, code_map, type_map, none_label):
+    if main_code is None or sub_code is None:
+        return None
+    if main_code == 0 and sub_code == 0:
+        return none_label
+    code_str = f"{main_code:02d}-{sub_code:02d}"
+    description = code_map.get((main_code, sub_code))
+    if description:
+        return f"{code_str}: {description}"
+    category = type_map.get(main_code)
+    if category:
+        return f"{code_str}: {category}"
+    return f"{code_str}: Unknown"
+
+
 ## Auto discovery for Home Assistant
 
 def publish_discovery_messages(client, sensors, device_info):
-    
-    for sensor_id, config in sensors.items():
+    all_sensor_configs = {**sensors, **{sid: {} for sid in derived_sensors}}
+    for sensor_id, config in all_sensor_configs.items():
         details = sensor_details.get(sensor_id, {})
         discovery_payload = {
             "name": details.get("name", sensor_id),
@@ -175,6 +199,21 @@ def main():
                 except Exception as e:
                     results[sensor] = None
                     print(f"Error reading {sensor}: {e}")
+
+            results["FAULT_STATUS"] = format_status_code(
+                results.get("MAIN_FAULT_CODE"),
+                results.get("SUB_FAULT_CODE"),
+                FAULT_CODES,
+                FAULT_TYPES,
+                "No Fault",
+            )
+            results["ALARM_STATUS"] = format_status_code(
+                results.get("MAIN_ALARM_CODE"),
+                results.get("SUB_ALARM_CODE"),
+                ALARM_CODES,
+                ALARM_TYPES,
+                "No Alarm",
+            )
 
             json_payload = json.dumps(results)
             mqtt_client.publish(os.getenv("MQTT_TOPIC"), json_payload)
