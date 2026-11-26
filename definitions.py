@@ -164,12 +164,6 @@ sensors = {
         "scale": 0.01,
         "unit": "A"
     },
-    "CT_CURR": {
-        "address": 0x3891,
-        "type": "S16",
-        "scale": 0.01,
-        "unit": "A"
-    },
     "LOAD_EN_DAY": {
         "address": 0x3892,
         "type": "U16",
@@ -290,20 +284,8 @@ sensors = {
         "scale": 0.1,
         "unit": "kWh"
     },
-    "LOCAL_LOAD_PWR": {
-        "address": 0x3922,
-        "type": "S32",
-        "scale": 0.1,
-        "unit": "W"
-    },
     "PV_TOTAL_PWR": {
         "address": 0x38E4,
-        "type": "U32",
-        "scale": 1,
-        "unit": "W"
-    },
-    "DAILY_PEAK_PWR": {
-        "address": 0x38CC,
         "type": "U32",
         "scale": 1,
         "unit": "W"
@@ -369,18 +351,6 @@ sensors = {
         "scale": 1,
         "unit": "s"
     },
-    "METER_COMM_QUALITY": {
-        "address": 0x3884,
-        "type": "U16",
-        "scale": 0.1,
-        "unit": "%"
-    },
-    "NBUS_V": {
-        "address": 0x3810,
-        "type": "U16",
-        "scale": 0.1,
-        "unit": "V"
-    },
     "BAT_STATUS": {
         "address": 0x3924,
         "type": "U16",
@@ -391,36 +361,6 @@ sensors = {
             1: "Charging",
             2: "Discharging"
         }
-    },
-    "BAT_CYCLES": {
-        "address": 0x3956,
-        "type": "U16",
-        "scale": 1,
-        "unit": "cycles"
-    },
-    "BAT_MAX_CELL_V": {
-        "address": 0x3944,
-        "type": "U16",
-        "scale": 1,
-        "unit": "mV"
-    },
-    "BAT_MIN_CELL_V": {
-        "address": 0x3945,
-        "type": "U16",
-        "scale": 1,
-        "unit": "mV"
-    },
-    "BAT_MAX_CELL_TEMP": {
-        "address": 0x3946,
-        "type": "S16",
-        "scale": 0.1,
-        "unit": "°C"
-    },
-    "BAT_MIN_CELL_TEMP": {
-        "address": 0x3947,
-        "type": "S16",
-        "scale": 0.1,
-        "unit": "°C"
     },
     "BMS_MAX_CHG_CURR": {
         "address": 0x3939,
@@ -498,18 +438,6 @@ sensors = {
             1: "Battery Priority",
             2: "Grid Priority"
         }
-    },
-    "USER_FLOW_PWR": {
-        "address": 0x3912,
-        "type": "S32",
-        "scale": 0.1,
-        "unit": "W"
-    },
-    "GRID_FLOW_PWR": {
-        "address": 0x391A,
-        "type": "S32",
-        "scale": 0.1,
-        "unit": "W"
     }
 }
 
@@ -638,12 +566,6 @@ sensor_details = {
         "device_class": "current",
         "state_class": "measurement"
     },
-    "CT_CURR": {
-        "name": "CT Current",
-        "icon": "mdi:current-ac",
-        "device_class": "current",
-        "state_class": "measurement"
-    },
     "LOAD_EN_DAY": {
         "name": "Load Energy Today",
         "icon": "mdi:power-plug",
@@ -764,21 +686,9 @@ sensor_details = {
         "device_class": "energy",
         "state_class": "total_increasing"
     },
-    "LOCAL_LOAD_PWR": {
-        "name": "Local Load Power",
-        "icon": "mdi:home-lightning-bolt-outline",
-        "device_class": "power",
-        "state_class": "measurement"
-    },
     "PV_TOTAL_PWR": {
         "name": "Total PV Power",
         "icon": "mdi:solar-power",
-        "device_class": "power",
-        "state_class": "measurement"
-    },
-    "DAILY_PEAK_PWR": {
-        "name": "Daily Peak Power",
-        "icon": "mdi:chart-line",
         "device_class": "power",
         "state_class": "measurement"
     },
@@ -821,50 +731,10 @@ sensor_details = {
         "device_class": "duration",
         "state_class": "measurement"
     },
-    "METER_COMM_QUALITY": {
-        "name": "Meter Communication Quality",
-        "icon": "mdi:signal",
-        "state_class": "measurement"
-    },
-    "NBUS_V": {
-        "name": "NBUS Voltage",
-        "icon": "mdi:flash",
-        "device_class": "voltage",
-        "state_class": "measurement"
-    },
     "BAT_STATUS": {
         "name": "Battery Status",
         "icon": "mdi:battery-sync",
         "device_class": "enum"
-    },
-    "BAT_CYCLES": {
-        "name": "Battery Cycles",
-        "icon": "mdi:battery-clock",
-        "state_class": "total_increasing"
-    },
-    "BAT_MAX_CELL_V": {
-        "name": "Battery Max Cell Voltage",
-        "icon": "mdi:battery-high",
-        "device_class": "voltage",
-        "state_class": "measurement"
-    },
-    "BAT_MIN_CELL_V": {
-        "name": "Battery Min Cell Voltage",
-        "icon": "mdi:battery-low",
-        "device_class": "voltage",
-        "state_class": "measurement"
-    },
-    "BAT_MAX_CELL_TEMP": {
-        "name": "Battery Max Cell Temperature",
-        "icon": "mdi:thermometer-high",
-        "device_class": "temperature",
-        "state_class": "measurement"
-    },
-    "BAT_MIN_CELL_TEMP": {
-        "name": "Battery Min Cell Temperature",
-        "icon": "mdi:thermometer-low",
-        "device_class": "temperature",
-        "state_class": "measurement"
     },
     "BMS_MAX_CHG_CURR": {
         "name": "BMS Max Charge Current",
@@ -914,18 +784,6 @@ sensor_details = {
         "name": "Priority Mode",
         "icon": "mdi:tune",
         "device_class": "enum"
-    },
-    "USER_FLOW_PWR": {
-        "name": "User Flow Power",
-        "icon": "mdi:home-import-outline",
-        "device_class": "power",
-        "state_class": "measurement"
-    },
-    "GRID_FLOW_PWR": {
-        "name": "Grid Flow Power",
-        "icon": "mdi:transmission-tower-export",
-        "device_class": "power",
-        "state_class": "measurement"
     },
 }
 
