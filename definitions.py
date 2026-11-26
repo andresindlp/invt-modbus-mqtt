@@ -68,25 +68,25 @@ sensors = {
         "address": 0x381F,
         "type": "S32",
         "scale": 0.1,
-        "unit": "Var"
+        "unit": "var"
     },
     "INVT_TEMP": {
         "address": 0x3822,
         "type": "S16",
         "scale": 0.1,
-        "unit": "ºC"
+        "unit": "°C"
     },
     "AMBIENT_TEMP": {
         "address": 0x3825,
         "type": "S16",
         "scale": 0.1,
-        "unit": "ºC"
+        "unit": "°C"
     },
     "RADIATOR_TEMP": {
         "address": 0x3826,
         "type": "S16",
         "scale": 0.1,
-        "unit": "ºC"
+        "unit": "°C"
     },
     "METER_PWR": {
         "address": 0x3827,
@@ -254,7 +254,7 @@ sensors = {
         "address": 0x394D,
         "type": "U16",
         "scale": 0.1,
-        "unit": "ºC"
+        "unit": "°C"
     },
     "PV1_PWR": {
         "address": 0x3B01,
@@ -358,8 +358,7 @@ sensor_details = {
     "DERAT_MODE": {
         "name": "Derating Mode",
         "icon": "mdi:alert-circle",
-        "device_class": "enum",
-        "state_class": "measurement"
+        "device_class": "enum"
     },
     "PV_EN_DAY": {
         "name": "PV Energy Today",
@@ -370,7 +369,6 @@ sensor_details = {
     "DC_OHM": {
         "name": "DC Isolation Resistance",
         "icon": "mdi:resistor",
-        "device_class": "power",
         "state_class": "measurement"
     },
     "PV1_V": {
