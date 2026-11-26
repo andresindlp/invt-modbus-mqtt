@@ -5,7 +5,16 @@ import numpy as np
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import os
-from definitions import sensors, sensor_details, device_info
+from definitions import (
+    ALARM_CODES,
+    ALARM_TYPES,
+    FAULT_CODES,
+    FAULT_TYPES,
+    derived_sensors,
+    device_info,
+    sensor_details,
+    sensors,
+)
 
 load_dotenv()
 
@@ -30,7 +39,16 @@ def convert_to_signed_16bit(value):
 
 ## Read specific Modbus address, convert the received data depending on the specified type, scale it, round it and return it.
 
-def read_sensor_value(client, address, slave, data_type, scale=1.0):
+def _decimals_for_scale(scale):
+    if isinstance(scale, int):
+        return 0
+    formatted = f"{scale:.10f}".rstrip("0")
+    if "." in formatted:
+        return len(formatted.split(".")[1])
+    return 0
+
+
+def read_sensor_value(client, address, slave, data_type, scale=1, value_map=None):
     if data_type in ["U16", "S16"]:
         rr = client.read_holding_registers(address=address, count=1, slave=slave)
     elif data_type in ["S32", "U32"]:
@@ -42,15 +60,67 @@ def read_sensor_value(client, address, slave, data_type, scale=1.0):
         raise Exception(f"Error reading registers at address {address}")
 
     if data_type == "U16":
-        return round(float(convert_to_unsigned_16bit(rr.registers[0])) * scale, 1)
+        raw_value = int(convert_to_unsigned_16bit(rr.registers[0]))
     elif data_type == "S16":
-        return round(float(convert_to_signed_16bit(rr.registers[0])) * scale, 1)
+        raw_value = int(convert_to_signed_16bit(rr.registers[0]))
     elif data_type == "S32":
         high, low = rr.registers
-        return round(float(convert_to_signed_32bit(high, low)) * scale, 1)
+        raw_value = int(convert_to_signed_32bit(high, low))
     elif data_type == "U32":
         high, low = rr.registers
-        return round(float(convert_to_unsigned_32bit(high, low)) * scale, 1)
+        raw_value = int(convert_to_unsigned_32bit(high, low))
+
+    if value_map is not None:
+        return value_map.get(raw_value, f"Unknown ({raw_value})")
+
+    decimals = _decimals_for_scale(scale)
+    if decimals == 0:
+        return int(raw_value * scale)
+    return round(float(raw_value) * scale, decimals)
+
+
+def read_serial_number(client, slave=1):
+    rr = client.read_holding_registers(address=0x3001, count=16, slave=slave)
+    if rr.isError():
+        raise Exception("Error reading serial number registers at address 0x3001")
+    raw_bytes = bytearray()
+    for reg in rr.registers:
+        for byte in ((reg >> 8) & 0xFF, reg & 0xFF):
+            if byte not in (0x00, 0xFF):
+                raw_bytes.append(byte)
+    return raw_bytes.decode("ascii", errors="ignore").strip()
+
+
+def read_sw_version(client, slave=1):
+    rr = client.read_holding_registers(address=0x3802, count=4, slave=slave)
+    if rr.isError():
+        raise Exception("Error reading software version registers at address 0x3802")
+    return "-".join(str(int(convert_to_unsigned_16bit(r))) for r in rr.registers)
+
+
+def populate_device_info(client, base_device_info, slave=1):
+    info = dict(base_device_info)
+
+    try:
+        serial_number = read_serial_number(client, slave=slave)
+        if serial_number:
+            info["serial_number"] = serial_number
+    except Exception as e:
+        print(f"Error reading serial number: {e}")
+
+    if "serial_number" not in info:
+        fallback_serial = os.getenv("INVT_SERIAL_NUMBER")
+        if fallback_serial:
+            info["serial_number"] = fallback_serial
+
+    try:
+        sw_version = read_sw_version(client, slave=slave)
+        if sw_version:
+            info["sw_version"] = sw_version
+    except Exception as e:
+        print(f"Error reading software version: {e}")
+
+    return info
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
@@ -58,11 +128,26 @@ def on_connect(client, userdata, flags, rc):
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+def format_status_code(main_code, sub_code, code_map, type_map, none_label):
+    if main_code is None or sub_code is None:
+        return None
+    if main_code == 0 and sub_code == 0:
+        return none_label
+    code_str = f"{main_code:02d}-{sub_code:02d}"
+    description = code_map.get((main_code, sub_code))
+    if description:
+        return f"{code_str}: {description}"
+    category = type_map.get(main_code)
+    if category:
+        return f"{code_str}: {category}"
+    return f"{code_str}: Unknown"
+
+
 ## Auto discovery for Home Assistant
 
 def publish_discovery_messages(client, sensors, device_info):
-    
-    for sensor_id, config in sensors.items():
+    all_sensor_configs = {**sensors, **{sid: {} for sid in derived_sensors}}
+    for sensor_id, config in all_sensor_configs.items():
         details = sensor_details.get(sensor_id, {})
         discovery_payload = {
             "name": details.get("name", sensor_id),
@@ -94,7 +179,8 @@ def main():
 
     try:
 
-        publish_discovery_messages(mqtt_client, sensors, device_info)
+        resolved_device_info = populate_device_info(client, device_info, slave=1)
+        publish_discovery_messages(mqtt_client, sensors, resolved_device_info)
 
         while True:
             results = {}
@@ -106,12 +192,28 @@ def main():
                         config["address"],
                         slave=1,
                         data_type=config["type"],
-                        scale=config["scale"]
+                        scale=config["scale"],
+                        value_map=config.get("value_map")
                     )
                     results[sensor] = value
                 except Exception as e:
                     results[sensor] = None
                     print(f"Error reading {sensor}: {e}")
+
+            results["FAULT_STATUS"] = format_status_code(
+                results.get("MAIN_FAULT_CODE"),
+                results.get("SUB_FAULT_CODE"),
+                FAULT_CODES,
+                FAULT_TYPES,
+                "No Fault",
+            )
+            results["ALARM_STATUS"] = format_status_code(
+                results.get("MAIN_ALARM_CODE"),
+                results.get("SUB_ALARM_CODE"),
+                ALARM_CODES,
+                ALARM_TYPES,
+                "No Alarm",
+            )
 
             json_payload = json.dumps(results)
             mqtt_client.publish(os.getenv("MQTT_TOPIC"), json_payload)
