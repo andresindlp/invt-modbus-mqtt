@@ -67,14 +67,19 @@ def publish_discovery_messages(client, sensors, device_info):
         discovery_payload = {
             "name": details.get("name", sensor_id),
             "state_topic": os.getenv("MQTT_TOPIC"),
-            "device_class": details.get("device_class"),
-            "state_class": details.get("state_class"),
-            "unit_of_measurement": config["unit"],
             "value_template": "{{ value_json." + sensor_id + " }}",
             "unique_id": f"modbus_{sensor_id}",
             "device": device_info,
-            "icon": details.get("icon")
         }
+        if details.get("device_class"):
+            discovery_payload["device_class"] = details["device_class"]
+        if details.get("state_class"):
+            discovery_payload["state_class"] = details["state_class"]
+        if config.get("unit"):
+            discovery_payload["unit_of_measurement"] = config["unit"]
+        if details.get("icon"):
+            discovery_payload["icon"] = details["icon"]
+
         discovery_topic = f"homeassistant/sensor/{sensor_id}/config"
         client.publish(discovery_topic, json.dumps(discovery_payload), retain=True)
 
